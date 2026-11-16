@@ -563,7 +563,6 @@ mod tests {
         .await
         .unwrap();
         let context = PlatformExtensionContext {
-            extension_manager: None,
             providers: Default::default(),
             session_manager,
             scheduler: Some(scheduler),

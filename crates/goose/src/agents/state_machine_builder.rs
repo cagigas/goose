@@ -18,11 +18,11 @@ use crate::agents::state_machine::UnavailableDecisions;
 use crate::agents::state_machine::{
     BangShellOperation, CompactionOperation, ContextRelevanceOperation, DoctorOperation,
     EmptyResponseOperation, FinalOutputOperation, GooseEffect, GooseInferenceProvider,
-    GooseInferenceRequestPreparer, GooseToolApproval, InferenceRunner, Operation, ProjectOperation,
-    RecipeOperation, RemainingToolCallsOperation, RetryOperation, SkillOperation,
-    SlashCommandOperation, StateMachine, StatusOperation, Step, StopHookOperation,
-    SubagentOperation, ToolApprovalOperation, ToolExecutionOperation, ToolPairCompactionOperation,
-    UnhandledToolCallsOperation,
+    GooseInferenceRequestPreparer, GooseToolApproval, InferenceRunner, Operation,
+    PlatformExtensionOperation, ProjectOperation, RecipeOperation, RemainingToolCallsOperation,
+    RetryOperation, SkillOperation, SlashCommandOperation, StateMachine, StatusOperation, Step,
+    StopHookOperation, SubagentOperation, ToolApprovalOperation, ToolExecutionOperation,
+    ToolPairCompactionOperation, UnhandledToolCallsOperation,
 };
 use crate::agents::subagent_handler::ForegroundSubagentRunner;
 use crate::agents::tool_execution::DECLINED_RESPONSE;
@@ -134,6 +134,11 @@ pub(crate) fn build_state_machine(
             hook_manager.clone(),
         )),
         Arc::new(RecipeOperation::new(Arc::clone(&extension_manager))),
+        Arc::new(PlatformExtensionOperation::new(
+            Arc::clone(&extension_manager),
+            hook_manager.clone(),
+            Arc::clone(&extension_lease),
+        )),
         Arc::new(ToolExecutionOperation::new(
             Arc::clone(&extension_manager),
             hook_manager.clone(),
