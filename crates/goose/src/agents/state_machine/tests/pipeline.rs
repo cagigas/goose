@@ -10,11 +10,11 @@ use super::calculator_extension::CalculatorExtension;
 use super::dummy_api::{DummyApi, ProviderFeatures};
 use crate::action_required_manager::ElicitationOutcome;
 use crate::agents::extension::ExtensionConfig;
-use crate::agents::extension_manager::ExtensionLease;
 use crate::agents::mcp_client::McpClientTrait;
 use crate::agents::state_machine::{
     messages_since_kickoff, Emitter, GooseEffect, Operation, RunStatus, StateMachine,
 };
+use crate::agents::tool_dispatcher::ToolDispatcher;
 use crate::agents::{AgentEvent, StateMachineServices, StateMachineServicesConfig, TurnSettings};
 use crate::config::permission::{PermissionLevel, PermissionManager};
 use crate::config::GooseMode;
@@ -172,20 +172,20 @@ impl TestPipeline {
             .await
     }
 
-    fn extension_lease(
+    fn tool_dispatcher(
         &self,
         services: &StateMachineServices,
-    ) -> Arc<StdMutex<Option<Arc<ExtensionLease>>>> {
+    ) -> Arc<StdMutex<Option<Arc<ToolDispatcher>>>> {
         services
             .runtime
             .confirmations
             .session(&self.session_id)
-            .extension_lease()
+            .tool_dispatcher()
     }
 
     async fn start_new_turn(&self) {
         let services = self.services().await;
-        *self.extension_lease(services).lock().unwrap() = None;
+        *self.tool_dispatcher(services).lock().unwrap() = None;
     }
 
     pub(super) async fn machine(
@@ -455,12 +455,12 @@ impl TestPipeline {
         pipeline.turn_settings = self.turn_settings.clone();
         pipeline.max_turns = self.max_turns;
         let lease = self
-            .extension_lease(self.services().await)
+            .tool_dispatcher(self.services().await)
             .lock()
             .unwrap()
             .clone();
         *pipeline
-            .extension_lease(pipeline.services().await)
+            .tool_dispatcher(pipeline.services().await)
             .lock()
             .unwrap() = lease;
         Ok(pipeline)
@@ -614,7 +614,7 @@ impl TestPipeline {
             .services()
             .await
             .extension_manager
-            .current_lease(&self.session_id)
+            .current_tools(&self.session_id)
             .await?
             .configs()
             .iter()

@@ -12,7 +12,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use tracing_futures::Instrument;
 
-use crate::agents::extension_manager::ExtensionLease;
 use crate::agents::state_machine::ops_toolcalling::{
     pending_advertised_tool_requests, tool_span, ToolDisposition, EXPIRED_APPROVAL_RESPONSE,
 };
@@ -21,6 +20,7 @@ use crate::agents::state_machine::{
     applied, messages_since_kickoff, not_applicable, yielded_with, ConversationEffect, Emitter,
     GooseEffect, Operation, OperationResult, SlashCommand,
 };
+use crate::agents::tool_dispatcher::ToolDispatcher;
 use crate::agents::tool_execution::CHAT_MODE_TOOL_SKIPPED_RESPONSE;
 use crate::config::GooseMode;
 use crate::conversation::message::{Message, ToolResponse};
@@ -31,7 +31,7 @@ use crate::session::Session;
 pub(super) const LOAD_SKILL_TOOL_NAME: &str = "load_skill";
 
 pub struct SkillOperation {
-    extension_lease: Arc<StdMutex<Option<Arc<ExtensionLease>>>>,
+    tool_dispatcher: Arc<StdMutex<Option<Arc<ToolDispatcher>>>>,
     hook_manager: HookManager,
 }
 
@@ -196,20 +196,20 @@ fn load_supporting_file(
 
 impl SkillOperation {
     pub fn new(
-        extension_lease: Arc<StdMutex<Option<Arc<ExtensionLease>>>>,
+        tool_dispatcher: Arc<StdMutex<Option<Arc<ToolDispatcher>>>>,
         hook_manager: HookManager,
     ) -> Self {
         Self {
-            extension_lease,
+            tool_dispatcher,
             hook_manager,
         }
     }
 
     fn leased_session(&self, session: &Session) -> Option<Session> {
         let lease = self
-            .extension_lease
+            .tool_dispatcher
             .lock()
-            .expect("extension lease unavailable")
+            .expect("tool dispatcher unavailable")
             .clone()?;
         if lease.scope_id() != session.id.as_str() {
             return None;

@@ -7,15 +7,16 @@ use async_trait::async_trait;
 use rmcp::model::{CallToolResult, ContentBlock};
 use tracing_futures::Instrument;
 
-use crate::agents::extension_manager::ExtensionLease;
 use crate::agents::state_machine::effects::GooseEffect;
 use crate::agents::state_machine::ops_toolcalling::{
-    leased_working_dir, pending_tool_requests, request_was_advertised, tool_span, ToolDisposition,
+    advertised_working_dir, pending_tool_requests, request_was_advertised, tool_span,
+    ToolDisposition,
 };
 use crate::agents::state_machine::tool_hooks::{check_pre_tool_hooks, emit_post_tool_hooks};
 use crate::agents::state_machine::{
     applied, messages_since_kickoff, not_applicable, Emitter, Operation, OperationResult,
 };
+use crate::agents::tool_dispatcher::ToolDispatcher;
 use crate::agents::tool_execution::CHAT_MODE_TOOL_SKIPPED_RESPONSE;
 use crate::config::GooseMode;
 use crate::conversation::message::{Message, ToolResponse};
@@ -27,17 +28,17 @@ pub(crate) const UNCLAIMED_TOOL_ERROR: &str = "goose.unclaimed_tool";
 
 pub struct RemainingToolCallsOperation {
     hook_manager: HookManager,
-    extension_lease: Arc<Mutex<Option<Arc<ExtensionLease>>>>,
+    tool_dispatcher: Arc<Mutex<Option<Arc<ToolDispatcher>>>>,
 }
 
 impl RemainingToolCallsOperation {
     pub fn new(
         hook_manager: HookManager,
-        extension_lease: Arc<Mutex<Option<Arc<ExtensionLease>>>>,
+        tool_dispatcher: Arc<Mutex<Option<Arc<ToolDispatcher>>>>,
     ) -> Self {
         Self {
             hook_manager,
-            extension_lease,
+            tool_dispatcher,
         }
     }
 }
@@ -93,7 +94,7 @@ impl Operation<Session, GooseEffect> for RemainingToolCallsOperation {
                 ToolDisposition::Execute => {
                     match request.tool_call.as_ref() {
                         Ok(tool_call) => {
-                            let working_dir = leased_working_dir(&self.extension_lease, session);
+                            let working_dir = advertised_working_dir(&self.tool_dispatcher, session);
                             if let Some(denied) = check_pre_tool_hooks(
                                 &self.hook_manager,
                                 &session.id,
